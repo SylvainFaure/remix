@@ -127,8 +127,8 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - lint
-      - vitest
-      - cypress
+      # - vitest
+      # - cypress
       - build
     if:
       ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') &&
