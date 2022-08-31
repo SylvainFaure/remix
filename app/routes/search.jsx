@@ -1,0 +1,101 @@
+import { json } from "@remix-run/node";
+import { Form, Link, useActionData, useTransition } from "@remix-run/react";
+
+export async function action({ request }) {
+  const formData = await request.formData();
+  const search = formData.get("search");
+
+  if (typeof search !== "string" || search.length === 0) {
+    return json(
+      { errors: { search: "Search is required", body: null } },
+      { status: 400 }
+    );
+  }
+
+  const req = await fetch(
+    `https://api.prod.airc.it/api/pages?vertical=main&crossvertical=1&search=${search}`
+  );
+  const { data } = await req.json();
+  const results = data.map(res => {
+    const featuredimage = res.featuredimage ? res.featuredimage.url : null
+    const image = featuredimage ? featuredimage.startsWith('/') ? `https://aircs3.imgix.net${featuredimage}` : featuredimage : null
+    return {
+      title: res.title,
+      url: res.url,
+      image
+    }
+  })
+  return json({ results, status: 200 });
+}
+
+export default function SearchPage() {
+  const actionData = useActionData();
+  const transition = useTransition()
+
+  return (
+    <div className="flex h-full min-h-screen flex-col">
+      <header className="flex items-center justify-between bg-slate-800 p-4 text-white">
+        <h1 className="text-3xl font-bold">
+          <Link to=".">Search</Link>
+        </h1>
+      </header>
+
+      <main className="p-16 h-full bg-white">
+        <Form
+          method="post"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            width: "100%",
+          }}
+        >
+          <div>
+            <label className="flex w-full flex-col gap-1">
+              <span>Search: </span>
+              <input
+                name="search"
+                className="flex-1 rounded-md border-2 border-blue-500 px-3 text-lg leading-loose"
+                aria-invalid={actionData?.errors?.title ? true : undefined}
+                aria-errormessage={
+                  actionData?.errors?.title ? "title-error" : undefined
+                }
+              />
+            </label>
+            {actionData?.errors?.search && (
+              <div className="pt-1 text-red-700" id="search-error">
+                {actionData.errors.search}
+              </div>
+            )}
+          </div>
+
+          <div className="text-right">
+            <button
+              type="submit"
+              disabled={transition.state === 'submitting'}
+              className="rounded bg-blue-500 py-2 px-4 text-white hover:bg-blue-600 focus:bg-blue-400 disabled:bg-slate-200"
+            >
+              {transition.state === 'submitting' ? 'Searching...' : 'Search'}
+            </button>
+          </div>
+        </Form>
+        <div className="mt-8">
+          <ul>
+            { actionData && actionData.results ? actionData.results.map((result, i) => {
+              return (
+                <li key={i} className="p-4 border border-r-4 my-2">
+                  <div className="flex justify-between">
+                    { result.image ? (
+                      <img className="h-48 mr-4 w-6/12 object-cover" height="200" width="auto" src={result.image} alt={result.title} />
+                    ) : null}
+                    <a className="w-6/12" href={result.url}>{result.title}</a>
+                  </div>
+                </li>
+              )
+            }) : null }
+          </ul>
+        </div>
+      </main>
+    </div>
+  );
+}
